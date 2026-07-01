@@ -48,3 +48,5 @@ On Windows Terminal, `Ctrl+V` may be handled by the terminal paste command befor
 Terminals that implement OSC 5522 enhanced paste can send clipboard MIME data directly to `omp`; image pastes are attached as `[Image #N]`, while text/plain paste events keep normal paste behavior. When OSC 5522 is unavailable, bracketed paste still handles text, and a pasted single image-file path is loaded as an image when the file is readable from the `omp` host.
 
 Older unqualified action names are migrated when `keybindings.yml` is loaded, but new docs and new configs should use the namespaced action IDs above. Existing `keybindings.json` files are still accepted and migrated to `keybindings.yml`; `keybindings.yaml` is also accepted.
+
+Single-Escape's effect on a non-empty draft is configurable via the `escapeClearBehavior` setting (`discard` by default — clears immediately — or `history` to save the draft to prompt history first so Up Arrow restores it, or `none` to leave the draft untouched). Ctrl+C (`app.clear`) always clears the draft regardless of this setting.

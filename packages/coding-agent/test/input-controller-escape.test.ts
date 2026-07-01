@@ -30,6 +30,7 @@ type FakeEditor = {
 	setText(text: string): void;
 	getText(): string;
 	addToHistory(text: string): void;
+	clearDraft(historyText?: string): void;
 	setActionKeys(action: string, keys: string[]): void;
 	setCustomKeyHandler(key: string, handler: () => void): void;
 	clearCustomKeyHandlers(): void;
@@ -119,6 +120,12 @@ function createContext(): {
 			return editorText;
 		},
 		addToHistory: vi.fn(),
+		clearDraft(historyText?: string) {
+			if (historyText !== undefined) this.addToHistory(historyText);
+			editorText = "";
+			this.pendingImages = [];
+			this.pendingImageLinks = [];
+		},
 		setActionKeys: vi.fn(),
 		setCustomKeyHandler: vi.fn(),
 		clearCustomKeyHandlers: vi.fn(),
@@ -749,5 +756,98 @@ describe("InputController double-tap ← gesture", () => {
 		tap();
 		expect(unfocusSession).toHaveBeenCalledTimes(1);
 		expect(showAgentHub).not.toHaveBeenCalled();
+	});
+});
+
+describe("InputController escapeClearBehavior", () => {
+	// All three cases exercise Site B: non-streaming, non-focused, no active btw/omfg,
+	// editor has non-empty text — the main idle-clear path.
+
+	it('discard (default): Escape clears a non-empty draft to ""', () => {
+		// No override needed — "discard" is the schema default.
+		const { ctx, editor, spies } = createContext();
+		const controller = new InputController(ctx);
+
+		controller.setupKeyHandlers();
+		editor.setText("some draft text");
+		editor.onEscape?.();
+
+		expect(editor.getText()).toBe("");
+		expect(spies.requestRender).toHaveBeenCalledTimes(1);
+		expect(ctx.showTreeSelector).not.toHaveBeenCalled();
+		expect(ctx.showUserMessageSelector).not.toHaveBeenCalled();
+	});
+
+	it("history: Escape saves the draft to history before clearing", () => {
+		Settings.instance.override("escapeClearBehavior", "history");
+		const { ctx, editor } = createContext();
+		const controller = new InputController(ctx);
+
+		controller.setupKeyHandlers();
+		editor.setText("important draft");
+		editor.onEscape?.();
+
+		// The original text must have been passed to addToHistory (Up Arrow restores it).
+		expect(editor.addToHistory).toHaveBeenCalledWith("important draft");
+		// The editor must be empty afterward.
+		expect(editor.getText()).toBe("");
+	});
+
+	it("none: Escape leaves a non-empty draft untouched, consumes the key, and resets lastEscapeTime", () => {
+		Settings.instance.override("escapeClearBehavior", "none");
+		const { ctx, editor, spies } = createContext();
+		const controller = new InputController(ctx);
+
+		controller.setupKeyHandlers();
+		editor.setText("do not touch me");
+		// Arm a stale double-Esc timer to prove it gets reset.
+		ctx.lastEscapeTime = Date.now() - 100;
+		editor.onEscape?.();
+
+		// Draft must be untouched.
+		expect(editor.getText()).toBe("do not touch me");
+		// addToHistory must NOT have been called.
+		expect(editor.addToHistory).not.toHaveBeenCalled();
+		// No selector opened — the Esc was fully consumed.
+		expect(ctx.showTreeSelector).not.toHaveBeenCalled();
+		expect(ctx.showUserMessageSelector).not.toHaveBeenCalled();
+		// lastEscapeTime reset to 0 so a stale arm cannot pair with a later Esc.
+		expect(ctx.lastEscapeTime).toBe(0);
+		// No render requested — nothing visual changed.
+		expect(spies.requestRender).not.toHaveBeenCalled();
+	});
+
+	// Site A: a focused subagent view with typed draft text. Esc never interrupts
+	// the focused agent's turn — it clears/keeps the draft per the setting, and
+	// only unfocuses when the draft is empty.
+	it("history (focused agent): Escape saves the focused-view draft to history before clearing", () => {
+		Settings.instance.override("escapeClearBehavior", "history");
+		const { ctx, editor } = createContext();
+		Object.defineProperty(ctx, "focusedAgentId", { value: "Worker", configurable: true });
+		const controller = new InputController(ctx);
+
+		controller.setupKeyHandlers();
+		editor.setText("focused draft");
+		editor.onEscape?.();
+
+		expect(editor.addToHistory).toHaveBeenCalledWith("focused draft");
+		expect(editor.getText()).toBe("");
+		// A non-empty draft must NOT unfocus the session.
+		expect(ctx.unfocusSession).not.toHaveBeenCalled();
+	});
+
+	it("none (focused agent): Escape leaves the focused-view draft untouched and does not unfocus", () => {
+		Settings.instance.override("escapeClearBehavior", "none");
+		const { ctx, editor } = createContext();
+		Object.defineProperty(ctx, "focusedAgentId", { value: "Worker", configurable: true });
+		const controller = new InputController(ctx);
+
+		controller.setupKeyHandlers();
+		editor.setText("keep me focused");
+		editor.onEscape?.();
+
+		expect(editor.getText()).toBe("keep me focused");
+		expect(editor.addToHistory).not.toHaveBeenCalled();
+		expect(ctx.unfocusSession).not.toHaveBeenCalled();
 	});
 });

@@ -346,7 +346,13 @@ export class InputController {
 				// else return the view to the main session. Interrupt via empty
 				// steer-flush submit if needed.
 				if (this.ctx.editor.getText().trim()) {
-					this.ctx.editor.setText("");
+					const behavior = settings.get("escapeClearBehavior");
+					if (behavior === "none") return;
+					if (behavior === "history") {
+						this.ctx.editor.clearDraft(this.ctx.editor.getText());
+					} else {
+						this.ctx.editor.setText("");
+					}
 					this.ctx.ui.requestRender();
 				} else {
 					void this.ctx.unfocusSession();
@@ -382,8 +388,25 @@ export class InputController {
 			} else if (this.ctx.session.isStreaming) {
 				this.#handleStreamingEscape();
 			} else if (this.ctx.editor.getText().trim()) {
-				// Esc with typed text clears the draft instead of (or before) any double-Esc action
-				this.ctx.editor.setText("");
+				// Esc with typed text: behavior is configurable via escapeClearBehavior.
+				// "discard" (default) clears the draft; "history" saves it to prompt
+				// history first so Up Arrow restores it; "none" leaves the draft alone
+				// so an accidental Esc mid-prompt is harmless (Ctrl+C still clears).
+				const behavior = settings.get("escapeClearBehavior");
+				if (behavior === "none") {
+					// Leave the draft untouched, but still CONSUME this Esc: reset the
+					// double-Esc timer and the streaming-escape arm so a prior empty-editor
+					// Esc cannot pair with a later one into a spurious /tree|/branch
+					// backtrack. Do not fall through to the double-Esc else branch.
+					this.ctx.lastEscapeTime = 0;
+					this.#clearStreamingEscapeArm();
+					return;
+				}
+				if (behavior === "history") {
+					this.ctx.editor.clearDraft(this.ctx.editor.getText());
+				} else {
+					this.ctx.editor.setText("");
+				}
 				this.ctx.ui.requestRender();
 				this.ctx.lastEscapeTime = 0;
 				this.#clearStreamingEscapeArm();

@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Added
+
+- Added `escapeClearBehavior` setting to control what pressing Escape does to a non-empty draft: `discard` (default, current behavior), `history` (save the draft to prompt history so Up Arrow restores it, then clear), or `none` (leave the draft untouched — Ctrl+C still clears). Helps users (e.g. vim users) who accidentally hit Escape mid-prompt.
+
 ## [16.2.13] - 2026-07-01
 
 ### Fixed

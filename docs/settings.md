@@ -586,6 +586,7 @@ For a custom status line, set `statusLine.preset: custom` and configure `statusL
 | `followUpMode` | enum | `one-at-a-time` | `all`, `one-at-a-time`. |
 | `interruptMode` | enum | `immediate` | `immediate`, `wait`. |
 | `doubleEscapeAction` | enum | `tree` | `branch`, `tree`, `none`. |
+| `escapeClearBehavior` | enum | `discard` | `discard`, `history`, `none`. What Escape does to a non-empty draft: discard, save-to-history-then-clear (Up Arrow restores), or leave untouched (Ctrl+C still clears). |
 | `autoResume` | boolean | `false` | Auto-resume the most recent session in the cwd. |
 | `ask.timeout` | number | `0` | Seconds before an `ask` prompt times out; `0` = no timeout. (Legacy ms values are migrated to seconds.) |
 | `ask.notify` | enum | `on` | `on`, `off`. |

@@ -1466,6 +1466,18 @@ export const SETTINGS_SCHEMA = {
 			description: "Action when pressing Escape twice with empty editor",
 		},
 	},
+	escapeClearBehavior: {
+		type: "enum",
+		values: ["discard", "history", "none"] as const,
+		default: "discard",
+		ui: {
+			tab: "interaction",
+			group: "Input",
+			label: "Escape Clears Input",
+			description:
+				"What pressing Escape does to a non-empty draft: discard it, save to history first (Up Arrow restores), or leave it untouched (Ctrl+C still clears)",
+		},
+	},
 
 	treeFilterMode: {
 		type: "enum",
